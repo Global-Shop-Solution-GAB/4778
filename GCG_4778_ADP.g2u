@@ -1,0 +1,167 @@
+Program.Sub.ScreenSU.Start
+Gui.F_Main..create
+Gui.F_Main..caption("ADP Entry")
+Gui.F_Main..size(2925,2865)
+Gui.F_Main..position(0,0)
+Gui.F_Main..event(UnLoad,unload)
+Gui.F_Main..alwaysontop(True)
+Gui.F_Main..fontname("arial")
+Gui.F_Main..forecolor(0)
+Gui.F_Main..fontstyle(False,False,False,False,False)
+Gui.F_Main..BackColor(-2147483633)
+Gui.F_Main..maxbutton(False)
+Gui.F_Main..mousepointer(0)
+Gui.F_Main..sizeable(False)
+Gui.F_Main..MinX(0)
+Gui.F_Main..MinY(0)
+Gui.F_Main.txtADP.create(textbox,"",True,1215,300,0,195,450,True,0,"arial",8,-2147483643,1)
+Gui.F_Main.txtADP.text("")
+Gui.F_Main.txtADP.maxLength(3)
+Gui.F_Main.lbl1.create(label,"ADP Company",True,1095,255,1,195,180,True,0,"arial",8,-2147483633,0)
+Gui.F_Main.txtBatch.create(textbox,"",True,1215,300,0,195,1200,True,0,"arial",8,-2147483643,1)
+Gui.F_Main.txtBatch.text("")
+Gui.F_Main.txtBatch.maxLength(8)
+Gui.F_Main.lbl2.create(label,"Batch Number",True,1095,255,1,195,930,True,0,"arial",8,-2147483633,0)
+Gui.F_Main.cmdExport.create(button)
+Gui.F_Main.cmdExport.caption("Export")
+Gui.F_Main.cmdExport.size(975,375)
+Gui.F_Main.cmdExport.position(225,1695)
+Gui.F_Main.cmdExport.fontname("arial")
+Gui.F_Main.cmdExport.event(Click,Process)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'09/29/2017
+'WAW
+'MADE MODIFICATIONS TO THIS EXPORT FOR LIFELINE AMBULANCES
+
+F.ODBC.Connection!Conx.OpenCompanyConnection
+Gui.F_main..Show
+Program.Sub.Main.End
+
+Program.Sub.Process.Start
+Gui.F_Main.cmdExport.Enabled(false)
+
+V.Local.sExport.declare(String)
+V.Local.sHold.declare(String)
+V.Local.sSQL.declare(String)
+V.Local.sDate.declare(String)
+V.Local.sFile.declare(Long)
+V.Local.sFileName.declare(String)
+V.Local.sTime.Declare(String)
+V.Local.sCompCode.Declare(String)
+V.Local.sBatchID.Declare(String)
+V.Local.sEmployee.Declare(String)
+V.Local.sType.Declare(String)
+V.Local.sFiller.Declare(String)
+
+F.Intrinsic.String.RPad(""," ",6,V.Local.sFiller)
+
+F.Intrinsic.String.RPad(V.Screen.F_Main!txtADP.Text," ",3,V.Local.sCompCode)
+F.Intrinsic.String.RPad(V.Screen.F_Main!txtBatch.Text," ",8,V.Local.sBatchID)
+
+F.Intrinsic.Control.If(V.Local.sCompCode.trim,=,"")
+	F.Intrinsic.UI.Msgbox("Must enter an ADP Company Code")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.Local.sBatchID.trim,=,"")
+	F.Intrinsic.UI.Msgbox("Must enter a Batch Number")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Left(V.Passed.888888,8,V.Local.sDate)
+F.Intrinsic.String.Mid(V.Passed.888888,9,6,V.Local.sTime)
+
+F.Intrinsic.File.Gethandle(V.Local.sFile)
+
+F.Intrinsic.String.Build("{0}\EPI{1}AA.csv",V.Caller.FilesDir,V.Local.sCompCode,V.Local.sFileName)
+F.Intrinsic.File.OpenForWrite(V.Local.sFileName,V.Local.sFile)
+
+F.Intrinsic.File.WriteLine(V.Local.sFile,"Co Code,Batch ID,File #, Hours 3 Code, Hours 3 Amount,Reg Hours, O/T Hours")
+
+F.Intrinsic.String.Build("SELECT Employee, Type, EC, Descr, Hours FROM Pyrl_Labor_Xfer WHERE Run_CYMD = '{0}' AND Run_Time = '{1}'", V.Local.sDate, V.Local.sTime, V.Local.sSQL)
+
+F.ODBC.Connection!Conx.OpenRecordsetRO("rstX",V.Local.sSQL)
+	
+F.Intrinsic.Control.DoUntil(V.ODBC.Conx!Rstx.EOF,=,True)
+	V.Local.sExport.redim(0,6)
+	
+	V.Local.sExport(0).Set(V.Local.sCompCode)
+	V.Local.sExport(1).Set(V.Local.sBatchID)	
+	F.Intrinsic.String.LPad(V.ODBC.Conx!rstX.FieldVal!Employee,"0",6,V.Local.sExport(2))
+	
+	V.Local.sType.Set(V.ODBC.Conx!Rstx.FieldValTrim!Type)
+	F.Intrinsic.Control.If(V.Local.sType,=,"EC")
+	
+		'I have no idea why the Desc field is not working the way they want, but I have hardcoded what they want.  Good luck if they ever change this.  
+		F.Intrinsic.Control.SelectCase(V.ODBC.Conx!rstX.FieldValTrim!EC)
+			F.Intrinsic.Control.Case("01")
+				V.Local.sExport(3).Set("RG")
+			F.Intrinsic.Control.Case("02")
+				V.Local.sExport(3).Set("PTO")
+			F.Intrinsic.Control.Case("03")
+				V.Local.sExport(3).Set("FLT")
+			F.Intrinsic.Control.Case("04")
+				V.Local.sExport(3).Set("WI")
+			F.Intrinsic.Control.Case("05")
+				V.Local.sExport(3).Set("HOL")
+			F.Intrinsic.Control.Case("06")
+				V.Local.sExport(3).Set("ONC")
+			F.Intrinsic.Control.Case("07")
+				V.Local.sExport(3).Set("JUR")
+			F.Intrinsic.Control.Case("08")
+				V.Local.sExport(3).Set("BRV")
+			F.Intrinsic.Control.Case("09")
+				V.Local.sExport(3).Set("WAI")
+			F.Intrinsic.Control.Case("10")
+				V.Local.sExport(3).Set("BON")
+		F.Intrinsic.Control.EndSelect
+		
+	F.Intrinsic.Control.ElseIf(V.Local.sType,<>,"OT", "AND", V.Local.sType,<>,"RT")
+		F.Intrinsic.String.Left(V.ODBC.Conx!rstX.FieldVal!Descr,3,V.Local.sExport(3))
+	F.Intrinsic.Control.Endif
+	
+	F.Intrinsic.Control.If(V.Local.sType,=,"DT","OR",V.Local.sType,=,"HT","OR",V.Local.sType,=,"EC")
+		V.Local.sExport(4).Set(V.ODBC.Conx!Rstx.FieldVal!Hours)
+	F.Intrinsic.Control.Else
+		V.Local.sExport(4).Set(V.Local.sFiller)
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.If(V.Local.sType,=,"RT")
+		V.Local.sExport(5).Set(V.ODBC.Conx!Rstx.FieldVal!Hours)
+	F.Intrinsic.Control.Else
+		V.Local.sExport(5).Set(V.Local.sFiller)
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.If(V.Local.sType,=,"OT")
+		V.Local.sExport(6).Set(V.ODBC.Conx!Rstx.FieldVal!Hours)
+	F.Intrinsic.Control.Else
+		V.Local.sExport(6).Set(V.Local.sFiller)
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.String.JoinCSV(V.Local.sExport,False,V.Local.sHold)
+	F.Intrinsic.File.WriteLine(V.Local.sFile,V.Local.sHold)
+	
+F.ODBC.Conx!Rstx.movenext
+F.Intrinsic.control.loop
+
+F.ODBC.Conx!Rstx.Close
+
+F.Intrinsic.File.Closefile(V.Local.sFile)
+
+F.Intrinsic.Control.CallSub(Unload)
+Program.Sub.Process.End
+
+Program.Sub.Unload.Start
+F.ODBC.Connection!Conx.Close
+F.Intrinsic.Control.End
+Program.Sub.Unload.End
+
+Program.Sub.Comments.Start
+${$0$}$Payroll_ADP_Descr$}$JCT$}$5/2/2014
+${$4$}$0$}$$}$0$}$-1$}$JCT$}$5/2/2014 6:51:13 AM$}$eployee name was listed in field headings, but not pulling through to export.  Corrected line, to include NAME, and changed line join to csvjoin, to allow for commas in employee name field
+Program.Sub.Comments.End
